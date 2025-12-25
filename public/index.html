@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>🎂 Sinh nhật Thảo – 28/12</title>
+
+<style>
+  body {
+    margin: 0;
+    overflow: hidden;
+    background: #000;
+    font-family: Arial, sans-serif;
+    cursor: default;
+  }
+
+  #title {
+    position: fixed;
+    top: 6%;
+    width: 100%;
+    text-align: center;
+    font-size: 26px;
+    letter-spacing: 3px;
+    color: #ff7aa2;
+    text-shadow: 0 0 20px rgba(255,120,160,0.9);
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 1s;
+  }
+
+  #opening-text {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 24px;
+    color: #fff;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 2s;
+    z-index: 15;
+  }
+
+  #countdown {
+    position: fixed;
+    top: 12%;
+    right: 5%;
+    font-size: 18px;
+    color: #ff7aa2;
+    z-index: 10;
+    opacity: 0;
+    background: rgba(0,0,0,0.5);
+    padding: 5px 10px;
+    border-radius: 10px;
+  }
+
+
+
+
+
+  #popup input,
+  #popup textarea {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    border: none;
+  }
+
+  #popup button {
+    width: 100%;
+    padding: 10px;
+    background: #ff5f9e;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+
+  #wish-button {
+    position: fixed;
+    bottom: 8%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 24px;
+    background: rgba(255,95,158,0.8);
+    color: #fff;
+    border: none;
+    border-radius: 25px;
+    font-size: 16px;
+    cursor: pointer;
+    z-index: 20;
+    opacity: 0;
+    transition: opacity 1s;
+  }
+
+  .floating-wish {
+    position: absolute;
+    color: #fff;
+    font-size: 14px;
+    pointer-events: none;
+    opacity: 0;
+    background: rgba(255,95,158,0.8);
+    padding: 10px 15px;
+    border-radius: 20px;
+    box-shadow: 0 0 10px rgba(255,120,160,0.5);
+    max-width: 250px;
+    word-wrap: break-word;
+    animation: float 4s ease-in-out forwards;
+    z-index: 25;
+  }
+
+  @keyframes float {
+    0% { opacity: 0; transform: translateY(20px) scale(0.8); }
+    10% { opacity: 1; transform: translateY(0) scale(1); }
+    90% { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(-20px) scale(0.8); }
+  }
+
+  /* Mobile optimizations */
+  @media (max-width: 768px) {
+    #title {
+      font-size: 18px;
+      top: 4%;
+    }
+
+    #opening-text {
+      font-size: 16px;
+      padding: 0 20px;
+    }
+
+    #countdown {
+      font-size: 12px;
+      top: 10%;
+      right: 5%;
+      bottom: auto;
+      left: auto;
+    }
+
+    #wish-button {
+      bottom: 10%;
+      padding: 10px 20px;
+      font-size: 14px;
+    }
+
+
+
+
+
+    #wish-button {
+      bottom: 10%;
+      padding: 10px 20px;
+      font-size: 14px;
+    }
+  }
+</style>
+</head>
+
+<body>
+
+<div id="opening-text"></div>
+<div id="title">💗 Sinh nhật Thảo · 28 · 12 💗</div>
+<div id="countdown"></div>
+<button id="wish-button">💌 Gửi lời chúc cho Thảo </button>
+
+
+
+
+<audio id="bg-music" loop>
+  <source src="music.mp3" type="audio/wav">
+  <!-- Placeholder music, replace with actual URL -->
+</audio>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.124.0/build/three.min.js"></script>
+<script>
+/* ================= VARIABLES ================= */
+let phase = 0; // 0: opening, 1: core
+let wishes = [];
+const audio = document.getElementById('bg-music');
+const openingText = document.getElementById('opening-text');
+const title = document.getElementById('title');
+const countdownEl = document.getElementById('countdown');
+const wishButton = document.getElementById('wish-button');
+const popup = document.getElementById('popup');
+
+/* ================= BASIC THREE SCENE ================= */
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.z = 50;
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(0x000000);
+document.body.appendChild(renderer.domElement);
+
+/* ================= HEART PARTICLES ================= */
+const heartParticles = [];
+const heartGeo = new THREE.BufferGeometry();
+const COUNT = 2000;
+const pos = new Float32Array(COUNT * 3);
+const colors = new Float32Array(COUNT * 3);
+
+for (let i = 0; i < COUNT; i++) {
+  // Parametric heart shape
+  let t = Math.random() * 2 * Math.PI;
+  let x = 16 * Math.pow(Math.sin(t), 3) * 0.5; // Scale down
+  let y = (13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t)) * 0.5;
+  let z = (Math.random() - 0.5) * 2; // Small depth
+
+  pos[i * 3] = x;
+  pos[i * 3 + 1] = y;
+  pos[i * 3 + 2] = z;
+
+  colors[i * 3] = 1;
+  colors[i * 3 + 1] = 0.4;
+  colors[i * 3 + 2] = 0.6;
+}
+
+heartGeo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+heartGeo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+
+const heartMat = new THREE.PointsMaterial({
+  size: 0.6,
+  vertexColors: true,
+  transparent: true,
+  opacity: 0.9,
+  blending: THREE.AdditiveBlending
+});
+
+const heart = new THREE.Points(heartGeo, heartMat);
+scene.add(heart);
+
+/* ================= SNOW PARTICLES ================= */
+const snowGeo = new THREE.BufferGeometry();
+const snowCount = 200;
+const snowPos = new Float32Array(snowCount * 3);
+for (let i = 0; i < snowCount; i++) {
+  snowPos[i * 3] = (Math.random() - 0.5) * 100;
+  snowPos[i * 3 + 1] = Math.random() * 50 + 10;
+  snowPos[i * 3 + 2] = (Math.random() - 0.5) * 50;
+}
+snowGeo.setAttribute("position", new THREE.BufferAttribute(snowPos, 3));
+const snowMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5, transparent: true, opacity: 0.8 });
+const snow = new THREE.Points(snowGeo, snowMat);
+scene.add(snow);
+
+/* ================= THẢO'S IMAGE ================= */
+const textureLoader = new THREE.TextureLoader();
+const thaoTexture = textureLoader.load('https://via.placeholder.com/200x200?text=Thao'); // Replace with actual image URL
+const thaoMat = new THREE.SpriteMaterial({ map: thaoTexture, transparent: true, opacity: 0.7 });
+const thaoSprite = new THREE.Sprite(thaoMat);
+thaoSprite.scale.set(5, 5, 1);
+thaoSprite.position.set(0, 0, 0);
+scene.add(thaoSprite);
+
+/* ================= PHASES ================= */
+function startOpening() {
+  // Dark screen, particles rising slowly
+  heart.visible = false;
+  snow.visible = false;
+  thaoSprite.visible = false;
+  setTimeout(() => {
+    openingText.textContent = "Có những ngày… thế giới bỗng dịu dàng hơn.";
+    openingText.style.opacity = 1;
+  }, 1000);
+  setTimeout(() => {
+    openingText.textContent = "28 · 12 · Thảo";
+  }, 4000);
+  setTimeout(() => {
+    openingText.style.opacity = 0;
+    startCore();
+  }, 8000);
+}
+
+function startCore() {
+  phase = 1;
+  heart.visible = true;
+  snow.visible = true;
+  thaoSprite.visible = true;
+  title.style.opacity = 1;
+  wishButton.style.opacity = 1;
+  countdownEl.style.opacity = 1;
+  // Start music
+  audio.volume = 0.3;
+  audio.play();
+  // Text overlays
+  setTimeout(() => {
+    title.textContent = "Hôm nay là sinh nhật em\nThảo 🌸";
+  }, 1000);
+  setTimeout(() => {
+    title.textContent = "Tụi mình mời bạn\nĐến chung vui cùng Thảo";
+  }, 4000);
+}
+
+/* ================= LOAD WISHES ================= */
+async function loadWishes() {
+  const res = await fetch("/api/wishes");
+  wishes = await res.json();
+  wishes.forEach(w => spawnWishParticle(w.color));
+}
+
+/* ================= SPAWN PARTICLE ================= */
+function spawnWishParticle(color) {
+  const i = Math.floor(Math.random() * COUNT);
+  const c = new THREE.Color(color);
+  colors[i * 3] = c.r;
+  colors[i * 3 + 1] = c.g;
+  colors[i * 3 + 2] = c.b;
+  heartGeo.attributes.color.needsUpdate = true;
+}
+
+/* ================= SUBMIT WISH ================= */
+async function submitWish() {
+  const name = document.getElementById("wish-name").value.trim();
+  const message = document.getElementById("wish-msg").value.trim();
+  if (!name || !message) return;
+
+  // Hide popup immediately
+  popup.style.display = 'none';
+  document.getElementById("wish-msg").value = "";
+
+  try {
+    const res = await fetch("/api/wishes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, message })
+    });
+
+    if (res.ok) {
+      const wish = await res.json();
+      spawnWishParticle(wish.color);
+    } else {
+      alert("Có lỗi khi gửi lời chúc. Vui lòng thử lại.");
+      popup.style.display = 'block'; // Show back if error
+    }
+  } catch (error) {
+    alert("Lỗi kết nối. Vui lòng thử lại.");
+    popup.style.display = 'block';
+  }
+}
+
+
+
+/* ================= COUNTDOWN ================= */
+function updateCountdown() {
+  const now = new Date();
+  const birthday = new Date(now.getFullYear(), 11, 28); // Dec 28
+  if (now > birthday) birthday.setFullYear(now.getFullYear() + 1);
+  const diff = birthday - now;
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  countdownEl.textContent = `${days} ngày nữa`;
+}
+
+/* ================= SHOW WISHES ================= */
+function showWishes() {
+  if (wishes.length === 0) return;
+  wishes.forEach((w, index) => {
+    setTimeout(() => {
+      const floating = document.createElement('div');
+      floating.className = 'floating-wish';
+      floating.textContent = `${w.name}: ${w.message}`;
+      floating.style.left = (Math.random() * 60 + 20) + '%';
+      floating.style.top = (Math.random() * 50 + 20) + '%';
+      document.body.appendChild(floating);
+      setTimeout(() => document.body.removeChild(floating), 4000);
+    }, index * 200); // Stagger by 200ms
+  });
+}
+wishButton.addEventListener('click', () => {
+  popup.style.display = 'block';
+});
+
+renderer.domElement.addEventListener('mouseenter', () => {
+  // Optional: still show on hover if wanted
+});
+
+/* ================= ANIMATE ================= */
+let beatTime = 0;
+function animate() {
+  requestAnimationFrame(animate);
+  if (phase === 1) {
+    heart.rotation.y += 0.002;
+    // Heartbeat
+    beatTime += 0.05;
+    let heartScale = 1 + 0.05 * Math.sin(beatTime);
+    heart.scale.set(heartScale, heartScale, heartScale);
+    // Animate snow
+    const positions = snowGeo.attributes.position.array;
+    for (let i = 0; i < snowCount; i++) {
+      positions[i * 3 + 1] -= 0.1;
+      if (positions[i * 3 + 1] < -10) positions[i * 3 + 1] = 50;
+    }
+    snowGeo.attributes.position.needsUpdate = true;
+  }
+  renderer.render(scene, camera);
+}
+
+/* ================= INIT ================= */
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+loadWishes();
+updateCountdown();
+setInterval(updateCountdown, 60000); // Update every minute
+startOpening();
+animate();
+
+// Start showing wishes continuously
+setInterval(() => {
+  if (phase === 1 && wishes.length > 0) {
+    const randomWish = wishes[Math.floor(Math.random() * wishes.length)];
+    const floating = document.createElement('div');
+    floating.className = 'floating-wish';
+    floating.textContent = `${randomWish.name}: ${randomWish.message}`;
+    floating.style.left = (Math.random() * 60 + 20) + '%';
+    floating.style.top = (Math.random() * 50 + 20) + '%';
+    document.body.appendChild(floating);
+    setTimeout(() => document.body.removeChild(floating), 4000);
+  }
+}, 5000); // Every 5 seconds
+</script>
+
+</body>
+</html>
