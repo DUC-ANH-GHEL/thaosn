@@ -213,20 +213,38 @@ const COUNT = 1000;
 const pos = new Float32Array(COUNT * 3);
 const colors = new Float32Array(COUNT * 3);
 
-for (let i = 0; i < COUNT; i++) {
-  // Parametric heart shape
-  let t = Math.random() * 2 * Math.PI;
-  let x = 16 * Math.pow(Math.sin(t), 3) * 0.5; // Scale down
+// Heart outline points for constellation
+const heartOutlineCount = 20;
+const heartOutlinePoints = [];
+for (let i = 0; i < heartOutlineCount; i++) {
+  let t = (i / heartOutlineCount) * 2 * Math.PI;
+  let x = 16 * Math.pow(Math.sin(t), 3) * 0.5;
   let y = (13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t)) * 0.5;
-  let z = (Math.random() - 0.5) * 2; // Small depth
+  let z = 0;
+  heartOutlinePoints.push(new THREE.Vector3(x, y, z));
+}
 
-  pos[i * 3] = x;
-  pos[i * 3 + 1] = y;
-  pos[i * 3 + 2] = z;
+// Target positions for full heart
+const targetPos = new Float32Array(COUNT * 3);
+for (let i = 0; i < COUNT; i++) {
+  let t = Math.random() * 2 * Math.PI;
+  let x = 16 * Math.pow(Math.sin(t), 3) * 0.5;
+  let y = (13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t)) * 0.5;
+  let z = (Math.random() - 0.5) * 2;
+  targetPos[i * 3] = x;
+  targetPos[i * 3 + 1] = y;
+  targetPos[i * 3 + 2] = z;
+}
+
+for (let i = 0; i < COUNT; i++) {
+  // Start scattered
+  pos[i * 3] = (Math.random() - 0.5) * 20;
+  pos[i * 3 + 1] = (Math.random() - 0.5) * 20;
+  pos[i * 3 + 2] = (Math.random() - 0.5) * 2;
 
   colors[i * 3] = 1;
-  colors[i * 3 + 1] = 0.4;
-  colors[i * 3 + 2] = 0.6;
+  colors[i * 3 + 1] = 0.8;
+  colors[i * 3 + 2] = 0.9; // Cool white
 }
 
 heartGeo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
@@ -236,12 +254,18 @@ const heartMat = new THREE.PointsMaterial({
   size: 0.6,
   vertexColors: true,
   transparent: true,
-  opacity: 0.9,
+  opacity: 0.2,
   blending: THREE.AdditiveBlending
 });
 
 const heart = new THREE.Points(heartGeo, heartMat);
 scene.add(heart);
+
+// Constellation lines
+const lineGeo = new THREE.BufferGeometry();
+const lineMat = new THREE.LineBasicMaterial({ color: 0xff7aa2, transparent: true, opacity: 0, blending: THREE.AdditiveBlending });
+const lines = new THREE.LineSegments(lineGeo, lineMat);
+scene.add(lines);
 
 /* ================= SNOW PARTICLES ================= */
 const snowGeo = new THREE.BufferGeometry();
@@ -449,11 +473,69 @@ function animate() {
   } else if (phase === 0) {
     // Opening, no special animation
   } else if (phase === 1) {
-    // Gathering: heart opacity increases, particles fly up
-    heart.material.opacity = Math.min(1, elapsed / 8); // Full opacity at 8s
-    // Particles rising
-    heart.position.y += 0.02;
-    if (heart.position.y > 0) heart.position.y = 0;
+    // Constellation Heart Formation
+    const constellationProgress = Math.min(1, elapsed / 17);
+    const positions = heartGeo.attributes.position.array;
+    const colors = heartGeo.attributes.color.array;
+
+    if (constellationProgress < 0.176) {
+      // 2.1 Star Scatter (~3s)
+      heart.material.opacity = 0.2;
+      // Particles drift slightly
+      for (let i = 0; i < COUNT; i++) {
+        positions[i * 3] += Math.sin(Date.now() * 0.001 + i) * 0.01;
+        positions[i * 3 + 1] += Math.cos(Date.now() * 0.001 + i) * 0.01;
+      }
+    } else if (constellationProgress < 0.47) {
+      // 2.2 Constellation Reveal (~5s)
+      const revealProgress = (constellationProgress - 0.176) / (0.47 - 0.176);
+      heart.material.opacity = 0.2 + 0.3 * revealProgress;
+      // Move outline particles to positions
+      for (let i = 0; i < heartOutlineCount; i++) {
+        positions[i * 3] += (heartOutlinePoints[i].x - positions[i * 3]) * 0.02;
+        positions[i * 3 + 1] += (heartOutlinePoints[i].y - positions[i * 3 + 1]) * 0.02;
+        positions[i * 3 + 2] += (heartOutlinePoints[i].z - positions[i * 3 + 2]) * 0.02;
+        // Brighten outline particles
+        colors[i * 3] = 1;
+        colors[i * 3 + 1] = 0.6 + 0.4 * revealProgress;
+        colors[i * 3 + 2] = 0.7 + 0.3 * revealProgress;
+      }
+      // Update lines
+      const linePositions = [];
+      for (let i = 0; i < heartOutlineCount; i++) {
+        for (let j = i + 1; j < heartOutlineCount; j++) {
+          if (heartOutlinePoints[i].distanceTo(heartOutlinePoints[j]) < 5) {
+            linePositions.push(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
+            linePositions.push(positions[j * 3], positions[j * 3 + 1], positions[j * 3 + 2]);
+          }
+        }
+      }
+      lineGeo.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3));
+      lineMat.opacity = revealProgress * 0.5;
+    } else if (constellationProgress < 0.647) {
+      // 2.3 Connection Fade (~3s)
+      const fadeProgress = (constellationProgress - 0.47) / (0.647 - 0.47);
+      lineMat.opacity = 0.5 * (1 - fadeProgress);
+      heart.material.opacity = 0.5 + 0.3 * fadeProgress;
+    } else {
+      // 2.4 Heart Solidification (~6s)
+      const solidifyProgress = (constellationProgress - 0.647) / (1 - 0.647);
+      heart.material.opacity = 0.8 + 0.2 * solidifyProgress;
+      // Move all particles to heart positions
+      for (let i = 0; i < COUNT; i++) {
+        positions[i * 3] += (targetPos[i * 3] - positions[i * 3]) * 0.02;
+        positions[i * 3 + 1] += (targetPos[i * 3 + 1] - positions[i * 3 + 1]) * 0.02;
+        positions[i * 3 + 2] += (targetPos[i * 3 + 2] - positions[i * 3 + 2]) * 0.02;
+        // Warm colors
+        colors[i * 3] = 1;
+        colors[i * 3 + 1] = 0.4 + 0.2 * solidifyProgress;
+        colors[i * 3 + 2] = 0.6 + 0.2 * solidifyProgress;
+      }
+      lineMat.opacity = 0;
+    }
+    heartGeo.attributes.position.needsUpdate = true;
+    heartGeo.attributes.color.needsUpdate = true;
+
     // Snow starts at ~5s
     if (elapsed > 5) {
       snow.visible = true;
