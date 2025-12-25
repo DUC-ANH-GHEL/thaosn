@@ -37,8 +37,19 @@
     color: #fff;
     text-align: center;
     opacity: 0;
-    transition: opacity 2s;
+    transition: opacity 3s;
     z-index: 15;
+    text-shadow: 0 0 10px #ff7aa2, 0 0 20px #ff7aa2, 0 0 30px #ff7aa2;
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+
+  @keyframes glow {
+    from {
+      text-shadow: 0 0 10px #ff7aa2, 0 0 20px #ff7aa2, 0 0 30px #ff7aa2;
+    }
+    to {
+      text-shadow: 0 0 20px #ff7aa2, 0 0 30px #ff7aa2, 0 0 40px #ff7aa2;
+    }
   }
 
   #countdown {
@@ -167,14 +178,14 @@
 
 
 <audio id="bg-music" loop>
-  <source src="music.mp3" type="audio/wav">
-  <!-- Placeholder music, replace with actual URL -->
+  <source src="music.mp3" type="audio/mpeg">
+  <!-- Replace with actual music file -->
 </audio>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.124.0/build/three.min.js"></script>
 <script>
 /* ================= VARIABLES ================= */
-let phase = 0; // 0: opening, 1: core
+let phase = -1; // -1: phase 0, 0: opening, 1: core
 let wishes = [];
 const audio = document.getElementById('bg-music');
 const openingText = document.getElementById('opening-text');
@@ -254,23 +265,25 @@ thaoSprite.scale.set(5, 5, 1);
 thaoSprite.position.set(0, 0, 0);
 scene.add(thaoSprite);
 
+/* ================= GLOWING DOT ================= */
+const dotGeo = new THREE.SphereGeometry(0.5, 16, 16);
+const dotMat = new THREE.MeshBasicMaterial({ color: 0xff7aa2, transparent: true, opacity: 0.8 });
+const dot = new THREE.Mesh(dotGeo, dotMat);
+dot.position.set(0, 0, 0);
+scene.add(dot);
+
 /* ================= PHASES ================= */
-function startOpening() {
-  // Dark screen, particles rising slowly
+function initPhase0() {
+  phase = -1;
   heart.visible = false;
   snow.visible = false;
   thaoSprite.visible = false;
-  setTimeout(() => {
-    openingText.textContent = "Có những ngày… thế giới bỗng dịu dàng hơn.";
-    openingText.style.opacity = 1;
-  }, 1000);
-  setTimeout(() => {
-    openingText.textContent = "28 · 12 · Thảo";
-  }, 4000);
-  setTimeout(() => {
-    openingText.style.opacity = 0;
-    startCore();
-  }, 8000);
+  dot.visible = true;
+  openingText.textContent = "Chạm để bắt đầu… ✨";
+  openingText.style.opacity = 1;
+  title.style.opacity = 0;
+  wishButton.style.opacity = 0;
+  countdownEl.style.opacity = 0;
 }
 
 function startCore() {
@@ -281,9 +294,6 @@ function startCore() {
   title.style.opacity = 1;
   wishButton.style.opacity = 1;
   countdownEl.style.opacity = 1;
-  // Start music
-  audio.volume = 0.3;
-  audio.play();
   // Text overlays
   setTimeout(() => {
     title.textContent = "Hôm nay là sinh nhật em\nThảo 🌸";
@@ -371,15 +381,50 @@ wishButton.addEventListener('click', () => {
   popup.style.display = 'block';
 });
 
-renderer.domElement.addEventListener('mouseenter', () => {
-  // Optional: still show on hover if wanted
-});
+renderer.domElement.addEventListener('click', handleStart);
+openingText.addEventListener('click', handleStart);
+
+function typeText(text, element, speed = 100) {
+  element.textContent = '';
+  let i = 0;
+  const timer = setInterval(() => {
+    element.textContent += text[i];
+    i++;
+    if (i >= text.length) clearInterval(timer);
+  }, speed);
+}
+
+function handleStart() {
+  if (phase === -1) {
+    audio.volume = 0.3;
+    audio.play();
+    phase = 0;
+    dot.visible = false;
+    openingText.style.opacity = 1;
+    typeText("Có những ngày… thế giới bỗng dịu dàng hơn.", openingText, 150);
+    setTimeout(() => {
+      openingText.textContent = '';
+      typeText("28 · 12 · Thảo", openingText, 150);
+      setTimeout(() => {
+        openingText.style.opacity = 0;
+        startCore();
+      }, 3000);
+    }, 8000); // Wait after first text typed + 3s
+  }
+}
 
 /* ================= ANIMATE ================= */
 let beatTime = 0;
 function animate() {
   requestAnimationFrame(animate);
-  if (phase === 1) {
+  if (phase === -1) {
+    // Pulse the dot
+    dot.scale.setScalar(1 + 0.2 * Math.sin(Date.now() * 0.005));
+  } else if (phase === 0) {
+    // Particles rising
+    heart.position.y += 0.05;
+    if (heart.position.y > 0) heart.position.y = 0;
+  } else if (phase === 1) {
     heart.rotation.y += 0.002;
     // Heartbeat
     beatTime += 0.05;
@@ -406,7 +451,7 @@ window.addEventListener("resize", () => {
 loadWishes();
 updateCountdown();
 setInterval(updateCountdown, 60000); // Update every minute
-startOpening();
+initPhase0();
 animate();
 
 // Start showing wishes continuously
